@@ -41,9 +41,8 @@ void LinkedList_Free(LinkedList *list,
     // STEP 2: sweep through the list and free all of the nodes' payloads
     // (using the payload_free_function supplied as an argument) and
     // the nodes themselves.
-    
     LinkedListNode* curr = list->head;
-    while(curr != NULL){
+    while (curr != NULL) {
         payload_free_function(curr->payload);
         LinkedListNode* next = curr->next;
         free(curr);
@@ -83,7 +82,6 @@ void LinkedList_Push(LinkedList *list, LLPayload_t payload) {
         list->head = ln;
         list->num_elements++;
     }
-    
 }
 
 bool LinkedList_Pop(LinkedList *list, LLPayload_t *payload_ptr) {
@@ -102,17 +100,17 @@ bool LinkedList_Pop(LinkedList *list, LLPayload_t *payload_ptr) {
     LinkedListNode* head = list->head;
     *payload_ptr = head->payload;
 
-    if(list->num_elements == 1){
+    if (list->num_elements == 1) {
         list->head = NULL;
         list->tail = NULL;
-    }else{
+    } else {
         list->head = head->next;
         list->head->prev = NULL;
     }
     list->num_elements--;
     free(head);
 
-    return true;  
+    return true;
 }
 
 void LinkedList_Append(LinkedList *list, LLPayload_t payload) {
@@ -136,10 +134,9 @@ void LinkedList_Append(LinkedList *list, LLPayload_t payload) {
         ln->prev = list->tail;
         list->tail->next = ln;
         ln->next = NULL;
-        list->tail = ln; 
+        list->tail = ln;
         list->num_elements++;
     }
-    
 }
 
 void LinkedList_Sort(LinkedList *list, bool ascending,
@@ -216,8 +213,7 @@ bool LLIterator_Next(LLIterator *iter) {
     // Note that if the iterator is already at the last node,
     // you should move the iterator past the end of the list
     iter->node = iter->node->next;
-    
-    return iter->node != NULL;  
+    return iter->node != NULL;
 }
 
 void LLIterator_Get(LLIterator *iter, LLPayload_t *payload) {
@@ -247,20 +243,20 @@ bool LLIterator_Remove(LLIterator *iter,
     // the iterator is pointing to, and also free any LinkedList
     // data structure element as appropriate.
 
-    bool res = true;    
+    bool res = true;
     LinkedListNode* curr = iter->node;
     if (iter->list->num_elements == 1) {
         iter->list->head = NULL;
         iter->list->tail = NULL;
         iter->node = NULL;
         res = false;
-    } else if(curr == iter->list->tail) {
+    } else if (curr == iter->list->tail) {
         // curr is the tail
         LinkedListNode* newTail = curr->prev;
         newTail->next = NULL;
         iter->node = newTail;
         iter->list->tail = newTail;
-    } else if(curr == iter->list->head) {
+    } else if (curr == iter->list->head) {
         // curr is the head head
         LinkedListNode* newHead = curr->next;
         newHead->prev = NULL;
@@ -297,10 +293,10 @@ bool LLSlice(LinkedList *list, LLPayload_t *payload_ptr) {
     LinkedListNode* tail = list->tail;
     *payload_ptr = tail->payload;
 
-    if(list->num_elements == 1){
+    if (list->num_elements == 1) {
         list->head = NULL;
         list->tail = NULL;
-    }else{
+    } else {
         tail->prev->next = NULL;
         list->tail = tail->prev;
     }
