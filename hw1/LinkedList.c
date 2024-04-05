@@ -76,6 +76,8 @@ void LinkedList_Push(LinkedList *list, LLPayload_t payload) {
         list->num_elements = 1;
     } else {
         // STEP 3: typical case; list has >=1 elements
+
+        // Make ln the new head:
         ln->next = list->head;
         ln->prev = NULL;
         list->head->prev = ln;
@@ -95,19 +97,25 @@ bool LinkedList_Pop(LinkedList *list, LLPayload_t *payload_ptr) {
     // Be sure to call free() to deallocate the memory that was
     // previously allocated by LinkedList_Push().
 
-    if (list->num_elements == 0) return false;
+    if (list->num_elements == 0)
+        return false;
 
     LinkedListNode* head = list->head;
+
+    // Set payload
     *payload_ptr = head->payload;
 
     if (list->num_elements == 1) {
+        // List becomes empty
         list->head = NULL;
         list->tail = NULL;
     } else {
+        // Make element after head new head;
         list->head = head->next;
         list->head->prev = NULL;
     }
     list->num_elements--;
+    // Free the head node
     free(head);
 
     return true;
@@ -119,18 +127,25 @@ void LinkedList_Append(LinkedList *list, LLPayload_t payload) {
     // STEP 5: implement LinkedList_Append.  It's kind of like
     // LinkedList_Push, but obviously you need to add to the end
     // instead of the beginning.
+    // Allocate space for the new listnode
     LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
     Verify333(ln != NULL);
 
+    // Set the payload
     ln->payload = payload;
 
     if (list->num_elements == 0) {
+        // Degenerate case: list is empty
+        // Exact same as Push Degenerate Case
         Verify333(list->head == NULL);
         Verify333(list->tail == NULL);
         ln->next = ln->prev = NULL;
         list->head = list->tail = ln;
         list->num_elements = 1;
     } else {
+        // Typical case - list has >= 1 elements
+
+        // Make ln the new tail:
         ln->prev = list->tail;
         list->tail->next = ln;
         ln->next = NULL;
@@ -212,6 +227,9 @@ bool LLIterator_Next(LLIterator *iter) {
     // you succeed, false otherwise
     // Note that if the iterator is already at the last node,
     // you should move the iterator past the end of the list
+
+    // Move iter to next element
+    // Iter becomes null only when current node is the last one
     iter->node = iter->node->next;
     return iter->node != NULL;
 }
@@ -246,6 +264,7 @@ bool LLIterator_Remove(LLIterator *iter,
     bool res = true;
     LinkedListNode* curr = iter->node;
     if (iter->list->num_elements == 1) {
+        // List becomes empty
         iter->list->head = NULL;
         iter->list->tail = NULL;
         iter->node = NULL;
@@ -263,7 +282,7 @@ bool LLIterator_Remove(LLIterator *iter,
         iter->node = newHead;
         iter->list->head = newHead;
     } else {
-        // generic case
+        // Generic case
         LinkedListNode* prev = curr->prev;
         LinkedListNode* next = curr->next;
         prev->next = next;
@@ -271,6 +290,7 @@ bool LLIterator_Remove(LLIterator *iter,
         iter->node = next;
     }
     iter->list->num_elements--;
+    // Free the payload and the node
     payload_free_function(curr->payload);
     free(curr);
 
