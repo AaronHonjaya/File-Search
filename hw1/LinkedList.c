@@ -21,137 +21,139 @@
 // LinkedList implementation.
 
 LinkedList* LinkedList_Allocate(void) {
-    // Allocate the linked list record.
-    LinkedList *ll = (LinkedList *) malloc(sizeof(LinkedList));
-    Verify333(ll != NULL);
+  // Allocate the linked list record.
+  LinkedList *ll = (LinkedList *) malloc(sizeof(LinkedList));
+  Verify333(ll != NULL);
 
-    // STEP 1: initialize the newly allocated record structure.
-    ll->head = NULL;
-    ll->tail = NULL;
-    ll->num_elements = 0;
-    // Return our newly minted linked list.
-    return ll;
+  // STEP 1: initialize the newly allocated record structure.
+  ll->head = NULL;
+  ll->tail = NULL;
+  ll->num_elements = 0;
+  // Return our newly minted linked list.
+  return ll;
 }
 
 void LinkedList_Free(LinkedList *list,
                      LLPayloadFreeFnPtr payload_free_function) {
-    Verify333(list != NULL);
-    Verify333(payload_free_function != NULL);
+  Verify333(list != NULL);
+  Verify333(payload_free_function != NULL);
 
-    // STEP 2: sweep through the list and free all of the nodes' payloads
-    // (using the payload_free_function supplied as an argument) and
-    // the nodes themselves.
-    LinkedListNode* curr = list->head;
-    while (curr != NULL) {
-        payload_free_function(curr->payload);
-        LinkedListNode* next = curr->next;
-        free(curr);
-        curr = next;
-    }
-    // free the LinkedList
-    free(list);
+  // STEP 2: sweep through the list and free all of the nodes' payloads
+  // (using the payload_free_function supplied as an argument) and
+  // the nodes themselves.
+  LinkedListNode* curr = list->head;
+  while (curr != NULL) {
+    payload_free_function(curr->payload);
+    LinkedListNode* next = curr->next;
+    free(curr);
+    curr = next;
+  }
+  // free the LinkedList
+  free(list);
 }
 
 int LinkedList_NumElements(LinkedList *list) {
-    Verify333(list != NULL);
-    return list->num_elements;
+  Verify333(list != NULL);
+  return list->num_elements;
 }
 
 void LinkedList_Push(LinkedList *list, LLPayload_t payload) {
-    Verify333(list != NULL);
+  Verify333(list != NULL);
 
-    // Allocate space for the new node.
-    LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
-    Verify333(ln != NULL);
+  // Allocate space for the new node.
+  LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
+  Verify333(ln != NULL);
 
-    // Set the payload
-    ln->payload = payload;
+  // Set the payload
+  ln->payload = payload;
 
-    if (list->num_elements == 0) {
-        // Degenerate case; list is currently empty
-        Verify333(list->head == NULL);
-        Verify333(list->tail == NULL);
-        ln->next = ln->prev = NULL;
-        list->head = list->tail = ln;
-        list->num_elements = 1;
-    } else {
-        // STEP 3: typical case; list has >=1 elements
+  if (list->num_elements == 0) {
+    // Degenerate case; list is currently empty
+    Verify333(list->head == NULL);
+    Verify333(list->tail == NULL);
+    ln->next = ln->prev = NULL;
+    list->head = list->tail = ln;
+    list->num_elements = 1;
+  } else {
+    // STEP 3: typical case; list has >=1 elements
 
-        // Make ln the new head:
-        ln->next = list->head;
-        ln->prev = NULL;
-        list->head->prev = ln;
-        list->head = ln;
-        list->num_elements++;
-    }
+    // Make ln the new head:
+    Verify333(list->head != NULL);
+    ln->next = list->head;
+    ln->prev = NULL;
+    list->head->prev = ln;
+    list->head = ln;
+    list->num_elements++;
+  }
 }
 
 bool LinkedList_Pop(LinkedList *list, LLPayload_t *payload_ptr) {
-    Verify333(payload_ptr != NULL);
-    Verify333(list != NULL);
+  Verify333(payload_ptr != NULL);
+  Verify333(list != NULL);
 
-    // STEP 4: implement LinkedList_Pop.  Make sure you test for
-    // and empty list and fail.  If the list is non-empty, there
-    // are two cases to consider: (a) a list with a single element in it
-    // and (b) the general case of a list with >=2 elements in it.
-    // Be sure to call free() to deallocate the memory that was
-    // previously allocated by LinkedList_Push().
+  // STEP 4: implement LinkedList_Pop.  Make sure you test for
+  // and empty list and fail.  If the list is non-empty, there
+  // are two cases to consider: (a) a list with a single element in it
+  // and (b) the general case of a list with >=2 elements in it.
+  // Be sure to call free() to deallocate the memory that was
+  // previously allocated by LinkedList_Push().
 
-    if (list->num_elements == 0)
-        return false;
+  if (list->num_elements == 0)
+    return false;
 
-    LinkedListNode* head = list->head;
+  LinkedListNode* head = list->head;
+  Verify333(head != NULL);
 
-    // Set payload
-    *payload_ptr = head->payload;
+  // Set payload
+  *payload_ptr = head->payload;
 
-    if (list->num_elements == 1) {
-        // List becomes empty
-        list->head = NULL;
-        list->tail = NULL;
-    } else {
-        // Make element after head new head;
-        list->head = head->next;
-        list->head->prev = NULL;
-    }
-    list->num_elements--;
-    // Free the head node
-    free(head);
+  if (list->num_elements == 1) {
+    // List becomes empty
+    list->head = NULL;
+    list->tail = NULL;
+  } else {
+    // Make element after head new head;
+    list->head = head->next;
+    list->head->prev = NULL;
+  }
+  list->num_elements--;
+  // Free the head node
+  free(head);
 
-    return true;
+  return true;
 }
 
 void LinkedList_Append(LinkedList *list, LLPayload_t payload) {
-    Verify333(list != NULL);
+  Verify333(list != NULL);
 
-    // STEP 5: implement LinkedList_Append.  It's kind of like
-    // LinkedList_Push, but obviously you need to add to the end
-    // instead of the beginning.
-    // Allocate space for the new listnode
-    LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
-    Verify333(ln != NULL);
+  // STEP 5: implement LinkedList_Append.  It's kind of like
+  // LinkedList_Push, but obviously you need to add to the end
+  // instead of the beginning.
+  // Allocate space for the new listnode
+  LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
+  Verify333(ln != NULL);
 
-    // Set the payload
-    ln->payload = payload;
+  // Set the payload
+  ln->payload = payload;
 
-    if (list->num_elements == 0) {
-        // Degenerate case: list is empty
-        // Exact same as Push Degenerate Case
-        Verify333(list->head == NULL);
-        Verify333(list->tail == NULL);
-        ln->next = ln->prev = NULL;
-        list->head = list->tail = ln;
-        list->num_elements = 1;
-    } else {
-        // Typical case - list has >= 1 elements
-
-        // Make ln the new tail:
-        ln->prev = list->tail;
-        list->tail->next = ln;
-        ln->next = NULL;
-        list->tail = ln;
-        list->num_elements++;
-    }
+  if (list->num_elements == 0) {
+    // Degenerate case: list is empty
+    // Exact same as Push Degenerate Case
+    Verify333(list->head == NULL);
+    Verify333(list->tail == NULL);
+    ln->next = ln->prev = NULL;
+    list->head = list->tail = ln;
+    list->num_elements = 1;
+  } else {
+    // Typical case - list has >= 1 elements
+    // Make ln the new tail:
+    Verify333(list->tail != NULL);
+    ln->prev = list->tail;
+    list->tail->next = ln;
+    ln->next = NULL;
+    list->tail = ln;
+    list->num_elements++;
+  }
 }
 
 void LinkedList_Sort(LinkedList *list, bool ascending,
@@ -219,19 +221,19 @@ bool LLIterator_IsValid(LLIterator *iter) {
 }
 
 bool LLIterator_Next(LLIterator *iter) {
-    Verify333(iter != NULL);
-    Verify333(iter->list != NULL);
-    Verify333(iter->node != NULL);
+  Verify333(iter != NULL);
+  Verify333(iter->list != NULL);
+  Verify333(iter->node != NULL);
 
-    // STEP 6: try to advance iterator to the next node and return true if
-    // you succeed, false otherwise
-    // Note that if the iterator is already at the last node,
-    // you should move the iterator past the end of the list
+  // STEP 6: try to advance iterator to the next node and return true if
+  // you succeed, false otherwise
+  // Note that if the iterator is already at the last node,
+  // you should move the iterator past the end of the list
 
-    // Move iter to next element
-    // Iter becomes null only when current node is the last one
-    iter->node = iter->node->next;
-    return iter->node != NULL;
+  // Move iter to next element
+  // Iter becomes null only when current node is the last one
+  iter->node = iter->node->next;
+  return iter->node != NULL;
 }
 
 void LLIterator_Get(LLIterator *iter, LLPayload_t *payload) {
@@ -244,57 +246,66 @@ void LLIterator_Get(LLIterator *iter, LLPayload_t *payload) {
 
 bool LLIterator_Remove(LLIterator *iter,
                        LLPayloadFreeFnPtr payload_free_function) {
-    Verify333(iter != NULL);
-    Verify333(iter->list != NULL);
-    Verify333(iter->node != NULL);
+  Verify333(iter != NULL);
+  Verify333(iter->list != NULL);
+  Verify333(iter->node != NULL);
 
-    // STEP 7: implement LLIterator_Remove.  This is the most
-    // complex function you'll build.  There are several cases
-    // to consider:
-    // - degenerate case: the list becomes empty after deleting.
-    // - degenerate case: iter points at head
-    // - degenerate case: iter points at tail
-    // - fully general case: iter points in the middle of a list,
-    //                       and you have to "splice".
-    //
-    // Be sure to call the payload_free_function to free the payload
-    // the iterator is pointing to, and also free any LinkedList
-    // data structure element as appropriate.
+  // STEP 7: implement LLIterator_Remove.  This is the most
+  // complex function you'll build.  There are several cases
+  // to consider:
+  // - degenerate case: the list becomes empty after deleting.
+  // - degenerate case: iter points at head
+  // - degenerate case: iter points at tail
+  // - fully general case: iter points in the middle of a list,
+  //                       and you have to "splice".
+  //
+  // Be sure to call the payload_free_function to free the payload
+  // the iterator is pointing to, and also free any LinkedList
+  // data structure element as appropriate.
 
-    bool res = true;
-    LinkedListNode* curr = iter->node;
-    if (iter->list->num_elements == 1) {
-        // List becomes empty
-        iter->list->head = NULL;
-        iter->list->tail = NULL;
-        iter->node = NULL;
-        res = false;
-    } else if (curr == iter->list->tail) {
-        // curr is the tail
-        LinkedListNode* newTail = curr->prev;
-        newTail->next = NULL;
-        iter->node = newTail;
-        iter->list->tail = newTail;
-    } else if (curr == iter->list->head) {
-        // curr is the head head
-        LinkedListNode* newHead = curr->next;
-        newHead->prev = NULL;
-        iter->node = newHead;
-        iter->list->head = newHead;
-    } else {
-        // Generic case
-        LinkedListNode* prev = curr->prev;
-        LinkedListNode* next = curr->next;
-        prev->next = next;
-        next->prev = prev;
-        iter->node = next;
-    }
-    iter->list->num_elements--;
-    // Free the payload and the node
-    payload_free_function(curr->payload);
-    free(curr);
+  bool res = true;
+  LinkedListNode* curr = iter->node;
+  if (iter->list->num_elements == 1) {
+    // List becomes empty
+    iter->list->head = NULL;
+    iter->list->tail = NULL;
+    iter->node = NULL;
+    res = false;
+  } else if (curr == iter->list->tail) {
+    // curr is the tail
+    LinkedListNode* newTail = curr->prev;
+    Verify333(newTail != NULL);  // shouldn't be possible since size > 1
 
-    return res;  // you may need to change this return value
+    newTail->next = NULL;
+    iter->node = newTail;
+    iter->list->tail = newTail;
+  } else if (curr == iter->list->head) {
+    // curr is the head head
+    LinkedListNode* newHead = curr->next;
+    Verify333(newHead != NULL);  // shouldn't be possible since size > 1
+
+    newHead->prev = NULL;
+    iter->node = newHead;
+    iter->list->head = newHead;
+  } else {
+    // Generic case
+    LinkedListNode* prev = curr->prev;
+    LinkedListNode* next = curr->next;
+
+    // neither should be possible since curr does not equal head or tail
+    Verify333(prev != NULL);
+    Verify333(next != NULL);
+
+    prev->next = next;
+    next->prev = prev;
+    iter->node = next;
+  }
+  iter->list->num_elements--;
+  // Free the payload and the node
+  payload_free_function(curr->payload);
+  free(curr);
+
+  return res;  // you may need to change this return value
 }
 
 
@@ -304,26 +315,27 @@ bool LLIterator_Remove(LLIterator *iter,
 // Helper functions
 
 bool LLSlice(LinkedList *list, LLPayload_t *payload_ptr) {
-    Verify333(payload_ptr != NULL);
-    Verify333(list != NULL);
+  Verify333(payload_ptr != NULL);
+  Verify333(list != NULL);
 
-    // STEP 8: implement LLSlice.
-    if (list->num_elements == 0) return false;
+  // STEP 8: implement LLSlice.
+  if (list->num_elements == 0) return false;
 
-    LinkedListNode* tail = list->tail;
-    *payload_ptr = tail->payload;
+  LinkedListNode* tail = list->tail;
+  Verify333(tail != NULL);  // shouldn't be possible since num elements > 0
+  *payload_ptr = tail->payload;
 
-    if (list->num_elements == 1) {
-        list->head = NULL;
-        list->tail = NULL;
-    } else {
-        tail->prev->next = NULL;
-        list->tail = tail->prev;
-    }
-    list->num_elements--;
-    free(tail);
+  if (list->num_elements == 1) {
+    list->head = NULL;
+    list->tail = NULL;
+  } else {
+    tail->prev->next = NULL;
+    list->tail = tail->prev;
+  }
+  list->num_elements--;
+  free(tail);
 
-    return true;  // you may need to change this return value
+  return true;  // you may need to change this return value
 }
 
 void LLIteratorRewind(LLIterator *iter) {
