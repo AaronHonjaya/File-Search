@@ -9,20 +9,20 @@
  * author.
  */
 
+#include "LinkedList.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "CSE333.h"
-#include "LinkedList.h"
 #include "LinkedList_priv.h"
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // LinkedList implementation.
 
-LinkedList* LinkedList_Allocate(void) {
+LinkedList *LinkedList_Allocate(void) {
   // Allocate the linked list record.
-  LinkedList *ll = (LinkedList *) malloc(sizeof(LinkedList));
+  LinkedList *ll = (LinkedList *)malloc(sizeof(LinkedList));
   Verify333(ll != NULL);
 
   // STEP 1: initialize the newly allocated record structure.
@@ -41,10 +41,10 @@ void LinkedList_Free(LinkedList *list,
   // STEP 2: sweep through the list and free all of the nodes' payloads
   // (using the payload_free_function supplied as an argument) and
   // the nodes themselves.
-  LinkedListNode* curr = list->head;
+  LinkedListNode *curr = list->head;
   while (curr != NULL) {
     payload_free_function(curr->payload);
-    LinkedListNode* next = curr->next;
+    LinkedListNode *next = curr->next;
     free(curr);
     curr = next;
   }
@@ -61,7 +61,7 @@ void LinkedList_Push(LinkedList *list, LLPayload_t payload) {
   Verify333(list != NULL);
 
   // Allocate space for the new node.
-  LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
+  LinkedListNode *ln = (LinkedListNode *)malloc(sizeof(LinkedListNode));
   Verify333(ln != NULL);
 
   // Set the payload
@@ -98,10 +98,9 @@ bool LinkedList_Pop(LinkedList *list, LLPayload_t *payload_ptr) {
   // Be sure to call free() to deallocate the memory that was
   // previously allocated by LinkedList_Push().
 
-  if (list->num_elements == 0)
-    return false;
+  if (list->num_elements == 0) return false;
 
-  LinkedListNode* head = list->head;
+  LinkedListNode *head = list->head;
   Verify333(head != NULL);
 
   // Set payload
@@ -130,7 +129,7 @@ void LinkedList_Append(LinkedList *list, LLPayload_t payload) {
   // LinkedList_Push, but obviously you need to add to the end
   // instead of the beginning.
   // Allocate space for the new listnode
-  LinkedListNode *ln = (LinkedListNode *) malloc(sizeof(LinkedListNode));
+  LinkedListNode *ln = (LinkedListNode *)malloc(sizeof(LinkedListNode));
   Verify333(ln != NULL);
 
   // Set the payload
@@ -172,8 +171,8 @@ void LinkedList_Sort(LinkedList *list, bool ascending,
     swapped = 0;
     curnode = list->head;
     while (curnode->next != NULL) {
-      int compare_result = comparator_function(curnode->payload,
-                                               curnode->next->payload);
+      int compare_result =
+          comparator_function(curnode->payload, curnode->next->payload);
       if (ascending) {
         compare_result *= -1;
       }
@@ -190,15 +189,14 @@ void LinkedList_Sort(LinkedList *list, bool ascending,
   } while (swapped);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // LLIterator implementation.
 
-LLIterator* LLIterator_Allocate(LinkedList *list) {
+LLIterator *LLIterator_Allocate(LinkedList *list) {
   Verify333(list != NULL);
 
   // OK, let's manufacture an iterator.
-  LLIterator *li = (LLIterator *) malloc(sizeof(LLIterator));
+  LLIterator *li = (LLIterator *)malloc(sizeof(LLIterator));
   Verify333(li != NULL);
 
   // Set up the iterator.
@@ -264,7 +262,7 @@ bool LLIterator_Remove(LLIterator *iter,
   // data structure element as appropriate.
 
   bool res = true;
-  LinkedListNode* curr = iter->node;
+  LinkedListNode *curr = iter->node;
   if (iter->list->num_elements == 1) {
     // List becomes empty
     iter->list->head = NULL;
@@ -273,7 +271,7 @@ bool LLIterator_Remove(LLIterator *iter,
     res = false;
   } else if (curr == iter->list->tail) {
     // curr is the tail
-    LinkedListNode* newTail = curr->prev;
+    LinkedListNode *newTail = curr->prev;
     Verify333(newTail != NULL);  // shouldn't be possible since size > 1
 
     newTail->next = NULL;
@@ -281,7 +279,7 @@ bool LLIterator_Remove(LLIterator *iter,
     iter->list->tail = newTail;
   } else if (curr == iter->list->head) {
     // curr is the head head
-    LinkedListNode* newHead = curr->next;
+    LinkedListNode *newHead = curr->next;
     Verify333(newHead != NULL);  // shouldn't be possible since size > 1
 
     newHead->prev = NULL;
@@ -289,8 +287,8 @@ bool LLIterator_Remove(LLIterator *iter,
     iter->list->head = newHead;
   } else {
     // Generic case
-    LinkedListNode* prev = curr->prev;
-    LinkedListNode* next = curr->next;
+    LinkedListNode *prev = curr->prev;
+    LinkedListNode *next = curr->next;
 
     // neither should be possible since curr does not equal head or tail
     Verify333(prev != NULL);
@@ -308,9 +306,6 @@ bool LLIterator_Remove(LLIterator *iter,
   return res;  // you may need to change this return value
 }
 
-
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
@@ -321,7 +316,7 @@ bool LLSlice(LinkedList *list, LLPayload_t *payload_ptr) {
   // STEP 8: implement LLSlice.
   if (list->num_elements == 0) return false;
 
-  LinkedListNode* tail = list->tail;
+  LinkedListNode *tail = list->tail;
   Verify333(tail != NULL);  // shouldn't be possible since num elements > 0
   *payload_ptr = tail->payload;
 
@@ -338,6 +333,4 @@ bool LLSlice(LinkedList *list, LLPayload_t *payload_ptr) {
   return true;  // you may need to change this return value
 }
 
-void LLIteratorRewind(LLIterator *iter) {
-  iter->node = iter->list->head;
-}
+void LLIteratorRewind(LLIterator *iter) { iter->node = iter->list->head; }

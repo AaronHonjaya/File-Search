@@ -1,22 +1,23 @@
 /*
-* Copyright ©2024 Hannah C. Tang.  All rights reserved.  Permission is
-* hereby granted to students registered for University of Washington
-* CSE 333 for use solely during Spring Quarter 2024 for purposes of
-* the course.  No other use, copying, distribution, or modification
-* is permitted without prior written consent. Copyrights for
-* third-party components of this work must be honored.  Instructors
-* interested in reusing these course materials should contact the
-* author.
-*/
+ * Copyright ©2024 Hannah C. Tang.  All rights reserved.  Permission is
+ * hereby granted to students registered for University of Washington
+ * CSE 333 for use solely during Spring Quarter 2024 for purposes of
+ * the course.  No other use, copying, distribution, or modification
+ * is permitted without prior written consent. Copyrights for
+ * third-party components of this work must be honored.  Instructors
+ * interested in reusing these course materials should contact the
+ * author.
+ */
 
+#include "HashTable.h"
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 #include "CSE333.h"
-#include "HashTable.h"
-#include "LinkedList.h"
 #include "HashTable_priv.h"
+#include "LinkedList.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Internal helper functions.
@@ -34,8 +35,8 @@ int HashKeyToBucketNum(HashTable *ht, HTKey_t key) {
 // Deallocation functions that do nothing.  Useful if we want to deallocate
 // the structure (eg, the linked list) without deallocating its elements or
 // if we know that the structure is empty.
-static void LLNoOpFree(LLPayload_t freeme) { }
-static void HTNoOpFree(HTValue_t freeme) { }
+static void LLNoOpFree(LLPayload_t freeme) {}
+static void HTNoOpFree(HTValue_t freeme) {}
 
 // Finds the given key-value pair within a list and will remove it if necessary
 //
@@ -47,9 +48,9 @@ static void HTNoOpFree(HTValue_t freeme) { }
 // Returns:
 // - pointer to the HTKeyValue_t in the node if found
 // - NULL if not found
-static HTKeyValue_t* getKeyValueAndMaybeDelete(LinkedList* list,
-                                HTKey_t searchKey,
-                                bool isRemove);
+static HTKeyValue_t *getKeyValueAndMaybeDelete(LinkedList *list,
+                                               HTKey_t searchKey,
+                                               bool isRemove);
 
 // Moves iter to the next bucket with an element
 //
@@ -64,7 +65,6 @@ static HTKeyValue_t* getKeyValueAndMaybeDelete(LinkedList* list,
 //          moved past the table
 static bool getNextBucket(HTIterator *iter);
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // HashTable implementation.
 
@@ -74,34 +74,34 @@ HTKey_t FNVHash64(unsigned char *buffer, int len) {
   //     http://code.google.com/p/nicola-bonelli-repo/
   static const uint64_t FNV1_64_INIT = 0xcbf29ce484222325ULL;
   static const uint64_t FNV_64_PRIME = 0x100000001b3ULL;
-  unsigned char *bp = (unsigned char *) buffer;
+  unsigned char *bp = (unsigned char *)buffer;
   unsigned char *be = bp + len;
   uint64_t hval = FNV1_64_INIT;
 
   // FNV-1a hash each octet of the buffer.
   while (bp < be) {
     // XOR the bottom with the current octet.
-    hval ^= (uint64_t) * bp++;
+    hval ^= (uint64_t)*bp++;
     // Multiply by the 64 bit FNV magic prime mod 2^64.
     hval *= FNV_64_PRIME;
   }
   return hval;
 }
 
-HashTable* HashTable_Allocate(int num_buckets) {
+HashTable *HashTable_Allocate(int num_buckets) {
   HashTable *ht;
   int i;
 
   Verify333(num_buckets > 0);
 
   // Allocate the hash table record.
-  ht = (HashTable *) malloc(sizeof(HashTable));
+  ht = (HashTable *)malloc(sizeof(HashTable));
   Verify333(ht != NULL);
 
   // Initialize the record.
   ht->num_buckets = num_buckets;
   ht->num_elements = 0;
-  ht->buckets = (LinkedList **) malloc(num_buckets * sizeof(LinkedList *));
+  ht->buckets = (LinkedList **)malloc(num_buckets * sizeof(LinkedList *));
   Verify333(ht->buckets != NULL);
   for (i = 0; i < num_buckets; i++) {
     ht->buckets[i] = LinkedList_Allocate();
@@ -110,8 +110,7 @@ HashTable* HashTable_Allocate(int num_buckets) {
   return ht;
 }
 
-void HashTable_Free(HashTable *table,
-                    ValueFreeFnPtr value_free_function) {
+void HashTable_Free(HashTable *table, ValueFreeFnPtr value_free_function) {
   int i;
 
   Verify333(table != NULL);
@@ -146,9 +145,8 @@ int HashTable_NumElements(HashTable *table) {
   return table->num_elements;
 }
 
-bool HashTable_Insert(HashTable *table,
-                    HTKeyValue_t newkeyvalue,
-                    HTKeyValue_t *oldkeyvalue) {
+bool HashTable_Insert(HashTable *table, HTKeyValue_t newkeyvalue,
+                      HTKeyValue_t *oldkeyvalue) {
   int bucket;
   LinkedList *chain;
   Verify333(table != NULL);
@@ -167,7 +165,7 @@ bool HashTable_Insert(HashTable *table,
 
   bool res = false;
   // Find key value pair and remove it
-  HTKeyValue_t* oldkv = getKeyValueAndMaybeDelete(chain, newkeyvalue.key, true);
+  HTKeyValue_t *oldkv = getKeyValueAndMaybeDelete(chain, newkeyvalue.key, true);
 
   if (oldkv != NULL) {
     // Key was found in the chain
@@ -178,21 +176,18 @@ bool HashTable_Insert(HashTable *table,
     res = true;
   } else {
     // Key was not found in the chain
-    table->num_elements+=1;
+    table->num_elements += 1;
   }
 
   // Add a new node with the newkeyvalue as the payload
-  HTKeyValue_t* newKVptr = (HTKeyValue_t*)malloc(sizeof(newkeyvalue));
+  HTKeyValue_t *newKVptr = (HTKeyValue_t *)malloc(sizeof(newkeyvalue));
   Verify333(newKVptr != NULL);
   *newKVptr = newkeyvalue;
-  LinkedList_Push(chain, (LLPayload_t) newKVptr);
+  LinkedList_Push(chain, (LLPayload_t)newKVptr);
   return res;
 }
 
-
-bool HashTable_Find(HashTable *table,
-                    HTKey_t key,
-                    HTKeyValue_t *keyvalue) {
+bool HashTable_Find(HashTable *table, HTKey_t key, HTKeyValue_t *keyvalue) {
   Verify333(table != NULL);
 
   // STEP 2: implement HashTable_Find.
@@ -205,7 +200,7 @@ bool HashTable_Find(HashTable *table,
   chain = table->buckets[bucket];
 
   // Get Key Value and do not delete node if found
-  HTKeyValue_t* searchkv = getKeyValueAndMaybeDelete(chain, key, false);
+  HTKeyValue_t *searchkv = getKeyValueAndMaybeDelete(chain, key, false);
   if (searchkv == NULL) {
     // Key was not found in chain
     return false;
@@ -215,9 +210,7 @@ bool HashTable_Find(HashTable *table,
   return true;
 }
 
-bool HashTable_Remove(HashTable *table,
-                    HTKey_t key,
-                    HTKeyValue_t *keyvalue) {
+bool HashTable_Remove(HashTable *table, HTKey_t key, HTKeyValue_t *keyvalue) {
   Verify333(table != NULL);
 
   // STEP 3: implement HashTable_Remove.
@@ -231,14 +224,14 @@ bool HashTable_Remove(HashTable *table,
   chain = table->buckets[bucket];
 
   // Find key value and remove if found
-  HTKeyValue_t* searchkv = getKeyValueAndMaybeDelete(chain, key, true);
+  HTKeyValue_t *searchkv = getKeyValueAndMaybeDelete(chain, key, true);
   if (searchkv == NULL) {
     // Key not found in chain
     return false;
   }
 
   // Key found in chain
-  table->num_elements-=1;
+  table->num_elements -= 1;
   *keyvalue = *searchkv;
 
   // Free the space allocated for the key-value pair
@@ -246,17 +239,16 @@ bool HashTable_Remove(HashTable *table,
   return true;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // HTIterator implementation.
 
-HTIterator* HTIterator_Allocate(HashTable *table) {
+HTIterator *HTIterator_Allocate(HashTable *table) {
   HTIterator *iter;
-  int         i;
+  int i;
 
   Verify333(table != NULL);
 
-  iter = (HTIterator *) malloc(sizeof(HTIterator));
+  iter = (HTIterator *)malloc(sizeof(HTIterator));
   Verify333(iter != NULL);
 
   // If the hash table is empty, the iterator is immediately invalid,
@@ -291,7 +283,6 @@ void HTIterator_Free(HTIterator *iter) {
   free(iter);
 }
 
-
 bool HTIterator_IsValid(HTIterator *iter) {
   Verify333(iter != NULL);
 
@@ -303,8 +294,7 @@ bool HTIterator_Next(HTIterator *iter) {
   Verify333(iter != NULL);
 
   // STEP 5: implement HTIterator_Next.
-  if (!HTIterator_IsValid(iter))
-    return false;
+  if (!HTIterator_IsValid(iter)) return false;
 
   // Should always be valid because if iter is not valid
   // after the LLIterator_Next call we move the iter to
@@ -314,8 +304,7 @@ bool HTIterator_Next(HTIterator *iter) {
 
   bool res = true;
   // If the iter is invalid we can call getNextBucket on it
-  if (!LLIterator_IsValid(iter->bucket_it))
-    res = getNextBucket(iter);
+  if (!LLIterator_IsValid(iter->bucket_it)) res = getNextBucket(iter);
   return res;
 }
 
@@ -325,11 +314,10 @@ bool HTIterator_Get(HTIterator *iter, HTKeyValue_t *keyvalue) {
   // STEP 6: implement HTIterator_Get.
 
   Verify333(keyvalue != NULL);
-  if (!HTIterator_IsValid(iter))
-    return false;
+  if (!HTIterator_IsValid(iter)) return false;
 
-  HTKeyValue_t* kv;
-  LLIterator_Get(iter->bucket_it, (LLPayload_t*) &kv);
+  HTKeyValue_t *kv;
+  LLIterator_Get(iter->bucket_it, (LLPayload_t *)&kv);
   Verify333(kv != NULL);  // shouldn't be possible since iter is valid
   *keyvalue = *kv;
   return true;  // you may need to change this return value
@@ -365,8 +353,7 @@ static void MaybeResize(HashTable *ht) {
   HTIterator *it;
 
   // Resize if the load factor is > 3.
-  if (ht->num_elements < 3 * ht->num_buckets)
-    return;
+  if (ht->num_elements < 3 * ht->num_buckets) return;
 
   // This is the resize case.  Allocate a new hashtable,
   // iterate over the old hashtable, do the surgery on
@@ -375,9 +362,8 @@ static void MaybeResize(HashTable *ht) {
   newht = HashTable_Allocate(ht->num_buckets * 9);
 
   // Loop through the old ht copying its elements over into the new one.
-  for (it = HTIterator_Allocate(ht);
-    HTIterator_IsValid(it);
-    HTIterator_Next(it)) {
+  for (it = HTIterator_Allocate(ht); HTIterator_IsValid(it);
+       HTIterator_Next(it)) {
     HTKeyValue_t item, unused;
 
     Verify333(HTIterator_Get(it, &item));
@@ -396,25 +382,24 @@ static void MaybeResize(HashTable *ht) {
   HashTable_Free(newht, &HTNoOpFree);
 }
 
-static HTKeyValue_t* getKeyValueAndMaybeDelete(LinkedList* list,
+static HTKeyValue_t *getKeyValueAndMaybeDelete(LinkedList *list,
                                                HTKey_t searchKey,
                                                bool isRemove) {
   Verify333(list != NULL);
-  LLIterator* iter = LLIterator_Allocate(list);
+  LLIterator *iter = LLIterator_Allocate(list);
   Verify333(iter != NULL);
 
   // Iterate through list to find node with searchKey
   while (LLIterator_IsValid(iter)) {
-    HTKeyValue_t* payload;
-    LLIterator_Get(iter, (LLPayload_t*) &payload);
+    HTKeyValue_t *payload;
+    LLIterator_Get(iter, (LLPayload_t *)&payload);
     Verify333(payload != NULL);  // shouldn't happen since iter is valid
 
     // If payload's key equals searchKey we have
     // Found the node and can return the payload
     if (payload->key == searchKey) {
       // Remove node if specified
-      if (isRemove)
-        LLIterator_Remove(iter, LLNoOpFree);
+      if (isRemove) LLIterator_Remove(iter, LLNoOpFree);
       LLIterator_Free(iter);
       return payload;
     }
@@ -428,7 +413,7 @@ static HTKeyValue_t* getKeyValueAndMaybeDelete(LinkedList* list,
 static bool getNextBucket(HTIterator *iter) {
   Verify333(!LLIterator_IsValid(iter->bucket_it));
   Verify333(HTIterator_IsValid(iter));
-  LinkedList** buckets = iter->ht->buckets;
+  LinkedList **buckets = iter->ht->buckets;
 
   // Iterate through buckets until a non-empty one is found
   // or until the index is past the number of buckets
