@@ -14,33 +14,33 @@
 
 #include "./FileParser.h"
 
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <ctype.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "libhw1/CSE333.h"
 #include "./MemIndex.h"
-
+#include "libhw1/CSE333.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Constants and declarations of internal helper functions
 
 #define ASCII_UPPER_BOUND 0x7F
+#define READ_SIZE 1024
 
 // Frees a WordPositions.positions's payload, which is just a
 // DocPositionOffset_t.
-static void NoOpFree(LLPayload_t payload) { }
+static void NoOpFree(LLPayload_t payload) {}
 
 // Frees a WordPositions struct.
 static void FreeWordPositions(HTValue_t payload) {
-  WordPositions* pos = (WordPositions*) payload;
+  WordPositions* pos = (WordPositions*)payload;
   LinkedList_Free(pos->positions, &NoOpFree);
   free(pos->word);
   free(pos);
@@ -54,14 +54,13 @@ static void AddWordPosition(HashTable* tab, char* word,
 // of WordPositions structures.
 static void InsertContent(HashTable* tab, char* content);
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Publically-exported functions
 
 char* ReadFileToString(const char* file_name, int* size) {
   struct stat file_stat;
   char* buf;
-  int result, fd;
+  int fd;
   ssize_t num_read;
   size_t left_to_read;
 
@@ -69,25 +68,37 @@ char* ReadFileToString(const char* file_name, int* size) {
   // Use the stat system call to fetch a "struct stat" that describes
   // properties of the file. ("man 2 stat"). You can assume we're on a 64-bit
   // system, with a 64-bit off_t field.
-
-
+  if (stat(file_name, &file_stat) < 0) {
+    perror("stat failed");
+    return NULL;
+  }
 
   // STEP 2.
   // Make sure this is a "regular file" and not a directory or something else
   // (use the S_ISREG macro described in "man 2 stat").
-
-
+  if (!S_ISREG(file_stat.st_mode)) {
+    perror("Not a Regular File");
+    return NULL;
+  }
 
   // STEP 3.
   // Attempt to open the file for reading (see also "man 2 open").
-
-
+  fd = open(file_name, O_RDONLY);
+  if (fd < 0) {
+    perror("open failed");
+    return NULL;
+  }
 
   // STEP 4.
   // Allocate space for the file, plus 1 extra byte to
   // '\0'-terminate the string.
 
-
+  buf = (char*)malloc(file_stat.st_size + 1);
+  if (buf == NULL) {
+    fprintf(stderr, "Malloc Failed for %s", file_name);
+    close(fd);
+    return NULL;
+  }
 
   // STEP 5.
   // Read in the file contents using the read() system call (see also
@@ -97,8 +108,29 @@ char* ReadFileToString(const char* file_name, int* size) {
   // read() inside a while loop, looping until you've read to the end of file
   // or a non-recoverable error.  Read the man page for read() carefully, in
   // particular what the return values -1 and 0 imply.
-  left_to_read = file_stat.st_size;
+
+  left_to_read = file_stat.st_size;  // set to total number of bytes
+  char* dst = buf;  // dst will be ptr to the end of the string for reading
   while (left_to_read > 0) {
+    num_read = read(fd, dst, left_to_read);
+    if (num_read == -1) {
+      if (errno == EAGAIN || errno == EINTR) {
+        // recoverable so continue
+        continue;
+      } else {
+        perror("read failed");
+        close(fd);
+        free(buf);
+        return NULL;
+      }
+    } else if (num_read == 0) {
+      // end of file reached before total bytes read.
+      // could be due to some errors in stat or read.
+      break;
+    }
+    // move pointer forward by num_read
+    dst += num_read;
+    left_to_read -= num_read;
   }
 
   // Great, we're done!  We hit the end of the file and we read
@@ -131,7 +163,7 @@ HashTable* ParseIntoWordPositionsTable(char* file_contents) {
   // Unicode friendly.
   for (i = 0; i < file_len; i++) {
     if (file_contents[i] == '\0' ||
-        (unsigned char) file_contents[i] > ASCII_UPPER_BOUND) {
+        (unsigned char)file_contents[i] > ASCII_UPPER_BOUND) {
       free(file_contents);
       return NULL;
     }
@@ -160,17 +192,15 @@ HashTable* ParseIntoWordPositionsTable(char* file_contents) {
   return tab;
 }
 
-void FreeWordPositionsTable(HashTable *table) {
+void FreeWordPositionsTable(HashTable* table) {
   HashTable_Free(table, &FreeWordPositions);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Internal helper functions
 
 static void InsertContent(HashTable* tab, char* content) {
   char* cur_ptr = content;
-  char* word_start = content;
 
   // STEP 6.
   // This is the interesting part of Part A!
@@ -200,19 +230,49 @@ static void InsertContent(HashTable* tab, char* content) {
   // AddWordPosition() helper with appropriate arguments, e.g.,
   // AddWordPosition(tab, wordstart, pos);
 
-  while (1) {
-    break;  // you may want to change this
-  }  // end while-loop
+  // the current position
+  DocPositionOffset_t pos = 0;
+
+  // the start position of the most recent word
+  DocPositionOffset_t word_start_pos = 0;
+
+  // NULL when we are not inside a word
+  char* word_start = NULL;
+
+  // Only null terminator is at the end of the string so loop unti it's reached
+  while (*cur_ptr != '\0') {
+    if (isalpha(*cur_ptr)) {
+      if (word_start == NULL) {
+        // found a new word so update word_start and its position
+        word_start = cur_ptr;
+        word_start_pos = pos;
+      }
+      // make lowercase
+      *cur_ptr = tolower(*cur_ptr);
+    } else {
+      // not alphabetic so change to null terminator
+      *cur_ptr = '\0';
+      if (word_start != NULL) {
+        // Was just inside a word meaning this is the end of it. So add word
+        // and reset word_start to NULL as we are no longer inside a word.
+        AddWordPosition(tab, word_start, word_start_pos);
+        word_start = NULL;
+      }
+    }
+    // update position and ptr.
+    pos += 1;
+    cur_ptr += 1;
+  }
 }
 
 static void AddWordPosition(HashTable* tab, char* word,
                             DocPositionOffset_t pos) {
   HTKey_t hash_key;
   HTKeyValue_t kv;
-  WordPositions *wp;
+  WordPositions* wp;
 
   // Hash the string.
-  hash_key = FNVHash64((unsigned char*) word, strlen(word));
+  hash_key = FNVHash64((unsigned char*)word, strlen(word));
 
   // Have we already encountered this word within this file?  If so, it's
   // already in the hashtable.
@@ -221,17 +281,26 @@ static void AddWordPosition(HashTable* tab, char* word,
     // how we're casting the DocPositionOffset_t position variable to an
     // LLPayload_t to store it in the linked list payload without needing to
     // malloc space for it.  Ugly, but it works!
-    wp = (WordPositions*) kv.value;
+    wp = (WordPositions*)kv.value;
 
     // Ensure we don't have hash collisions (two different words that hash to
     // the same key, which is very unlikely).
     Verify333(strcmp(wp->word, word) == 0);
 
-    LinkedList_Append(wp->positions, (LLPayload_t) (int64_t) pos);
+    LinkedList_Append(wp->positions, (LLPayload_t)(int64_t)pos);
   } else {
     // STEP 7.
     // No; this is the first time we've seen this word.  Allocate and prepare
     // a new WordPositions structure, and append the new position to its list
     // using a similar ugly hack as right above.
+    wp = (WordPositions*)malloc(sizeof(WordPositions));
+    char* wordPtr = strdup(word);
+    wp->word = wordPtr;
+    wp->positions = LinkedList_Allocate();
+    LinkedList_Append(wp->positions, (LLPayload_t)(int64_t)pos);
+    HTKeyValue_t newkv;
+    newkv.key = hash_key;
+    newkv.value = wp;
+    HashTable_Insert(tab, newkv, &kv);
   }
 }
