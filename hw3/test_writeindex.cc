@@ -9,8 +9,8 @@
  * author.
  */
 
-#include <sys/types.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -19,13 +19,13 @@
 
 #include "gtest/gtest.h"
 extern "C" {
-  #include "libhw2/CrawlFileTree.h"
-  #include "libhw2/DocTable.h"
-  #include "libhw2/MemIndex.h"
+#include "libhw2/CrawlFileTree.h"
+#include "libhw2/DocTable.h"
+#include "libhw2/MemIndex.h"
 }
-#include "./test_suite.h"
 #include "./WriteIndex.h"
 #include "./hw3fsck/FileIndexChecker.h"
+#include "./test_suite.h"
 
 using std::cout;
 using std::endl;
@@ -40,11 +40,9 @@ class Test_WriteIndex : public ::testing::Test {
   // (ie, before all TEST_Fs).  Note it is a static member function
   // (ie, a class method, not an object instance method).
   static void SetUpTestCase() {
-    cout << "             Crawling ./test_tree/enron_mail..."
-         << std::endl;
+    cout << "             Crawling ./test_tree/enron_mail..." << std::endl;
     int res = CrawlFileTree(const_cast<char*>("./test_tree/enron_email"),
-                            &Test_WriteIndex::dt_,
-                            &Test_WriteIndex::mi_);
+                            &Test_WriteIndex::dt_, &Test_WriteIndex::mi_);
     std::cout << "               ...done crawling." << std::endl;
     ASSERT_NE(0, res);
   }
@@ -67,20 +65,20 @@ class Test_WriteIndex : public ::testing::Test {
 DocTable* Test_WriteIndex::dt_;
 MemIndex* Test_WriteIndex::mi_;
 
-
 // Test our ability to write to a file.  Does not verify file contents.
 TEST_F(Test_WriteIndex, Basic) {
   int points = 0;
   RecordProperty("points", points);
 
   stringstream ss;
-  ss << "/tmp/test." << (uint32_t) getpid() << ".index";
+  ss << "/tmp/test." << (uint32_t)getpid() << ".index";
   string f_name = ss.str();
 
-  cout << "             " <<
-    "Writing index " << mi_ << " out to " << f_name << "..." << endl;
+  cout << "             "
+       << "Writing index " << mi_ << " out to " << f_name << "..." << endl;
   int res = WriteIndex(mi_, dt_, f_name.c_str());
-  cout << "             " << "...done writing." << endl;
+  cout << "             "
+       << "...done writing." << endl;
   ASSERT_LT(100000, res);
 
   // Use hw3fsck to check the file.

@@ -9,18 +9,44 @@
  * author.
  */
 
-#include <cstdlib>    // for EXIT_SUCCESS, EXIT_FAILURE
-#include <iostream>   // for std::cout, std::cerr, etc.
+#include <string.h>
 
-#include "./QueryProcessor.h"
+#include <cstdlib>   // for EXIT_SUCCESS, EXIT_FAILURE
+#include <iostream>  // for std::cout, std::cerr, etc.
+#include <sstream>
+
+#include "QueryProcessor.h"
+
+using namespace hw3;
 
 using std::cerr;
+using std::cout;
 using std::endl;
+
+#define BUFF_SIZE 4
+#define STARTING_QUERY_SIZE 1024
+#define ERROR_CODE -1
+#define EOF_CODE 0
+#define SUCCESS_CODE 1
 
 // Error usage message for the client to see
 // Arguments:
 // - prog_name: Name of the program
 static void Usage(char* prog_name);
+
+/** Splits up a string by spaces into different query words
+ *
+ * Arguments:
+ * - ret_str_array: is the return parameter. Should be an array that will store
+ * the pointers to the different query words. The caller is responsible for
+ *                  freeing this array by calling free() (e.g. free(queries));
+ * - input: the string to parse from
+ *
+ * Returns:
+ * - number of queries: on scucess
+ * - ERROR_CODE: when any errors occur.
+ */
+static vector<string> GetQueries();
 
 // Your job is to implement the entire filesearchshell.cc
 // functionality. We're essentially giving you a blank screen to work
@@ -83,10 +109,22 @@ int main(int argc, char** argv) {
     Usage(argv[0]);
   }
 
+  // get list of indexes to process
+  // list<string> indexes;
+  // for (int i = 1; i < argc; i++) {
+  //   indexes.push_back(argv[i]);
+  // }
+  // QueryProcessor qp(indexes);
+
+  vector<string> queries = GetQueries();
+  for (auto& q : queries) {
+    cout << q << ", ";
+  }
   // STEP 1:
   // Implement filesearchshell!
   // Probably want to write some helper methods ...
-  while (1) { }
+  // while (1) {
+  // }
 
   return EXIT_SUCCESS;
 }
@@ -94,4 +132,21 @@ int main(int argc, char** argv) {
 static void Usage(char* prog_name) {
   cerr << "Usage: " << prog_name << " [index files+]" << endl;
   exit(EXIT_FAILURE);
+}
+
+static  GetQueries(vector<string>& ret_val) {
+  string line;
+  std::getline(std::cin, line);
+  if (std::cin.eof()) {
+    cout << "End of file reached";
+  }
+  std::stringstream ss(line);
+  string word;
+  vector<string> queries;
+  while (ss >> word) {
+    queries.push_back(word);
+  }
+  cout << endl;
+
+  return queries;
 }

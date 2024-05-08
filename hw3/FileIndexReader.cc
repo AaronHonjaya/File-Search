@@ -11,21 +11,22 @@
 
 #include "./FileIndexReader.h"
 
-#include <sys/types.h>  // for stat()
 #include <sys/stat.h>   // for stat()
+#include <sys/types.h>  // for stat()
 #include <unistd.h>     // for stat()
 
 extern "C" {
-  #include "libhw1/CSE333.h"
+#include "libhw1/CSE333.h"
 }
-#include "./Utils.h"    // for class CRC32.
+#include <iostream>
+
+#include "./Utils.h"  // for class CRC32.
 
 using std::string;
 
 namespace hw3 {
 
-FileIndexReader::FileIndexReader(const string& file_name,
-                                 bool validate) {
+FileIndexReader::FileIndexReader(const string& file_name, bool validate) {
   // Stash a copy of the index file's name.
   file_name_ = file_name;
 
@@ -35,22 +36,25 @@ FileIndexReader::FileIndexReader(const string& file_name,
 
   // STEP 1.
   // Make the (FILE*) be unbuffered.  ("man setbuf")
-
+  setbuf(file_, nullptr);
 
   // STEP 2.
   // Read the entire file header and convert to host format.
 
-
+  Verify333(fseek(file_, MAGIC_NUMBER_OFFSET, SEEK_SET) == 0);
+  Verify333(fread(&header_, sizeof(IndexFileHeader), 1, file_) == 1);
+  header_.ToHostFormat();
   // STEP 3.
   // Verify that the magic number is correct.  Crash if not.
+  Verify333(header_.magic_number == kMagicNumber);
 
-
-  // Make sure the index file's length lines up with the header fields.
   struct stat f_stat;
   Verify333(stat(file_name_.c_str(), &f_stat) == 0);
-  Verify333(
-    f_stat.st_size == static_cast<unsigned int>(
-      sizeof(IndexFileHeader) + header_.doctable_bytes + header_.index_bytes));
+
+  Verify333(f_stat.st_size ==
+            static_cast<unsigned int>(sizeof(IndexFileHeader) +
+                                      header_.doctable_bytes +
+                                      header_.index_bytes));
 
   if (validate) {
     // Re-calculate the checksum, make sure it matches that in the header.
@@ -66,6 +70,21 @@ FileIndexReader::FileIndexReader(const string& file_name,
       // You should only need to modify code inside the while loop for
       // this step. Remember that file_ is now unbuffered, so care needs
       // to be put into how the file is sequentially read
+      int bytes_read = fread(buf, sizeof(char), kBufSize, file_);
+      if (bytes_read == 0) {
+        if (ferror(file_)) {
+          exit(EXIT_FAILURE);
+        } else if (feof(file_)) {
+          printf("\n Reached EOF \n");
+          break;
+        }
+      }
+      // fold bytes into check sum
+      for (int i = 0; i < bytes_read; i++) {
+        crc_obj.FoldByteIntoCRC(buf[i]);
+      }
+
+      left_to_read -= bytes_read;
     }
     Verify333(crc_obj.GetFinalCRC() == header_.checksum);
   }

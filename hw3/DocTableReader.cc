@@ -9,14 +9,16 @@
  * author.
  */
 
-#include <stdint.h>     // for uint32_t, etc.
-#include <sstream>      // for std::stringstream
-
-#include "./LayoutStructs.h"
 #include "./DocTableReader.h"
 
+#include <stdint.h>  // for uint32_t, etc.
+
+#include <sstream>  // for std::stringstream
+
+#include "./LayoutStructs.h"
+
 extern "C" {
-  #include "libhw1/CSE333.h"
+#include "libhw1/CSE333.h"
 }
 
 using std::string;
@@ -29,7 +31,7 @@ namespace hw3 {
 // care of taking ownership of f and using it to extract and
 // cache the number of buckets within the table.
 DocTableReader::DocTableReader(FILE* f, IndexFileOffset_t offset)
-  : HashTableReader(f, offset) { }
+    : HashTableReader(f, offset) {}
 
 bool DocTableReader::LookupDocID(const DocID_t& doc_id,
                                  string* const ret_str) const {
@@ -39,15 +41,16 @@ bool DocTableReader::LookupDocID(const DocID_t& doc_id,
   auto elements = LookupElementPositions(doc_id);
 
   // If the list is empty, we're done.
-  if (elements.empty())
-    return false;
+  if (elements.empty()) return false;
 
   // Iterate through the elements, looking for our docID.
   for (IndexFileOffset_t& curr_el_offset : elements) {
     // STEP 1.
     // Slurp the next docid out of the element.
     DoctableElementHeader curr_header;
-
+    Verify333(fread(&curr_header, sizeof(DoctableElementHeader), 1, file_) ==
+              1);
+    curr_header.ToHostFormat();
 
     // Is it a match?
     if (curr_header.doc_id == doc_id) {
@@ -65,7 +68,7 @@ bool DocTableReader::LookupDocID(const DocID_t& doc_id,
       // Using the str() method of ss to extract a std::string object,
       // and return it through the output parameter ret_str.  Return
       // true.
-
+      *ret_str = ss.str();
 
       return true;
     }
