@@ -34,19 +34,19 @@ using std::endl;
 // - prog_name: Name of the program
 static void Usage(char* prog_name);
 
-/** Splits up a string by spaces into different query words
+/** Gets queries from console (cin)
  *
  * Arguments:
- * - ret_str_array: is the return parameter. Should be an array that will store
- * the pointers to the different query words. The caller is responsible for
- *                  freeing this array by calling free() (e.g. free(queries));
- * - input: the string to parse from
+ * - ret_val: vector through which the querries will be returned
  *
  * Returns:
- * - number of queries: on scucess
- * - ERROR_CODE: when any errors occur.
+ * - SUCCESS_CODE: on scucess
+ * - EOF_CODE: when the end of file is reached (CTRL+D pressed)
  */
-static vector<string> GetQueries();
+static int GetQueries(vector<string>* const ret_val);
+
+// Takes in a string and returns a lower case version of it.
+static string ToLowerCase(const string& str);
 
 // Your job is to implement the entire filesearchshell.cc
 // functionality. We're essentially giving you a blank screen to work
@@ -109,22 +109,41 @@ int main(int argc, char** argv) {
     Usage(argv[0]);
   }
 
-  // get list of indexes to process
-  // list<string> indexes;
-  // for (int i = 1; i < argc; i++) {
-  //   indexes.push_back(argv[i]);
-  // }
-  // QueryProcessor qp(indexes);
-
-  vector<string> queries = GetQueries();
-  for (auto& q : queries) {
-    cout << q << ", ";
-  }
   // STEP 1:
   // Implement filesearchshell!
   // Probably want to write some helper methods ...
-  // while (1) {
-  // }
+
+  // get list of indexes to process
+  list<string> indexes;
+  for (int i = 1; i < argc; i++) {
+    indexes.push_back(argv[i]);
+  }
+  QueryProcessor qp(indexes);
+
+  vector<string> queries;
+  while (GetQueries(&queries) == SUCCESS_CODE) {
+    // make sure query size is valid
+    if (queries.size() == 0) {
+      continue;
+    }
+
+    // get results and check size
+    vector<QueryProcessor::QueryResult> results = qp.ProcessQuery(queries);
+    if (results.size() == 0) {
+      cout << "  [no results]" << endl;
+      queries.clear();  // clear queries for next iteration
+      continue;
+    }
+
+    // print results
+    for (auto& cur_res : results) {
+      cout << "  " << cur_res.document_name << "(" << cur_res.rank << ")"
+           << endl;
+    }
+
+    // clear queries for next iteration
+    queries.clear();
+  }
 
   return EXIT_SUCCESS;
 }
@@ -134,19 +153,31 @@ static void Usage(char* prog_name) {
   exit(EXIT_FAILURE);
 }
 
-static  GetQueries(vector<string>& ret_val) {
+static int GetQueries(vector<string>* const ret_val) {
+  cout << "Enter query:" << endl;
+
   string line;
+  // get line and check if EOF is reached.
   std::getline(std::cin, line);
   if (std::cin.eof()) {
-    cout << "End of file reached";
+    return EOF_CODE;
   }
+
+  // use string stream to parse each word
   std::stringstream ss(line);
   string word;
-  vector<string> queries;
   while (ss >> word) {
-    queries.push_back(word);
+    ret_val->push_back(ToLowerCase(word));  // add lowercase version to ret_val
   }
-  cout << endl;
 
-  return queries;
+  return SUCCESS_CODE;
+}
+
+static string ToLowerCase(const string& str) {
+  // use string stream to make each char lower case.
+  std::stringstream ss;
+  for (char c : str) {
+    ss << static_cast<char>(tolower(c));
+  }
+  return ss.str();
 }

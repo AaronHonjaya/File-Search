@@ -48,6 +48,7 @@ bool DocTableReader::LookupDocID(const DocID_t& doc_id,
     // STEP 1.
     // Slurp the next docid out of the element.
     DoctableElementHeader curr_header;
+    Verify333(fseek(file_, curr_el_offset, SEEK_SET) == 0);
     Verify333(fread(&curr_header, sizeof(DoctableElementHeader), 1, file_) ==
               1);
     curr_header.ToHostFormat();

@@ -44,6 +44,7 @@ FileIndexReader::FileIndexReader(const string& file_name, bool validate) {
   Verify333(fseek(file_, MAGIC_NUMBER_OFFSET, SEEK_SET) == 0);
   Verify333(fread(&header_, sizeof(IndexFileHeader), 1, file_) == 1);
   header_.ToHostFormat();
+
   // STEP 3.
   // Verify that the magic number is correct.  Crash if not.
   Verify333(header_.magic_number == kMagicNumber);
@@ -70,12 +71,14 @@ FileIndexReader::FileIndexReader(const string& file_name, bool validate) {
       // You should only need to modify code inside the while loop for
       // this step. Remember that file_ is now unbuffered, so care needs
       // to be put into how the file is sequentially read
+
+      // read bytes
       int bytes_read = fread(buf, sizeof(char), kBufSize, file_);
       if (bytes_read == 0) {
         if (ferror(file_)) {
-          exit(EXIT_FAILURE);
+          std::cerr << "error reading file" << std::endl;
+          break;
         } else if (feof(file_)) {
-          printf("\n Reached EOF \n");
           break;
         }
       }
@@ -83,7 +86,7 @@ FileIndexReader::FileIndexReader(const string& file_name, bool validate) {
       for (int i = 0; i < bytes_read; i++) {
         crc_obj.FoldByteIntoCRC(buf[i]);
       }
-
+      // update left to read
       left_to_read -= bytes_read;
     }
     Verify333(crc_obj.GetFinalCRC() == header_.checksum);

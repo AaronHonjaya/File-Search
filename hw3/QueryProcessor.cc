@@ -35,7 +35,7 @@ namespace hw3 {
 // e.g. if dst[i].docID equals src[j].docID for some j => dst[i].rank +=
 // src[j].rank
 //      if dst[i].docID has no matching docID in src, then remove dst[i]
-static void MergeDocIDElementLists(list<DocIDElementHeader>& dst,
+static void MergeDocIDElementLists(list<DocIDElementHeader>* const dst,
                                    const list<DocIDElementHeader>& src);
 
 QueryProcessor::QueryProcessor(const list<string>& index_list, bool validate) {
@@ -91,29 +91,31 @@ vector<QueryProcessor::QueryResult> QueryProcessor::ProcessQuery(
   vector<QueryProcessor::QueryResult> final_result;
 
   for (uint32_t i = 0; i < index_list_.size(); i++) {
-    uint32_t start = 0;
-    DocIDTableReader* first_ditr = nullptr;
-    while (first_ditr == nullptr && start < query.size()) {
-      first_ditr = itr_array_[i]->LookupWord(query.at(start));
-      start++;
-    }
+    // Lookup first word to see if it matches. If not continue
+    DocIDTableReader* first_ditr = itr_array_[i]->LookupWord(query.at(0));
     if (first_ditr == nullptr) {
       continue;
     }
     list<DocIDElementHeader> final_id_rank_list = first_ditr->GetDocIDList();
-    delete first_ditr;
+    delete first_ditr;  // delete since its unecessary now.
 
-    for (uint32_t j = start; j < query.size(); j++) {
+    // first query word is good so lookup the rest
+    for (uint32_t j = 1; j < query.size(); j++) {
       DocIDTableReader* curr_ditr = itr_array_[i]->LookupWord(query.at(j));
+
+      // no matches in this case so clear and exit loop
       if (curr_ditr == nullptr) {
         final_id_rank_list.clear();
         break;
       }
+
+      // matched so get the id-list and merge elements with final list.
       list<DocIDElementHeader> curr_id_rank_list = curr_ditr->GetDocIDList();
-      MergeDocIDElementLists(final_id_rank_list, curr_id_rank_list);
+      MergeDocIDElementLists(&final_id_rank_list, curr_id_rank_list);
       delete curr_ditr;
     }
 
+    // push all results for this index onto the final_result.
     for (auto& header : final_id_rank_list) {
       string file_name;
       if (dtr_array_[i]->LookupDocID(header.doc_id, &file_name)) {
@@ -130,21 +132,29 @@ vector<QueryProcessor::QueryResult> QueryProcessor::ProcessQuery(
   return final_result;
 }
 
-static void MergeDocIDElementLists(list<DocIDElementHeader>& dst,
+static void MergeDocIDElementLists(list<DocIDElementHeader>* const dst,
                                    const list<DocIDElementHeader>& src) {
   bool matched;
-  for (auto it = dst.begin(); it != dst.end();) {
+
+  // for each header in destination,
+  // delete if there is no corresponding header (same id) in src
+  // and increase rank by the corresponding header rank if there is.
+  for (auto it = dst->begin(); it != dst->end();) {
     matched = false;
     for (auto& header : src) {
       if (header.doc_id == (*it).doc_id) {
+        // found corresponding docId
         (*it).num_positions += header.num_positions;
         matched = true;
+        break;
       }
     }
     if (matched) {
+      // just increment iterator
       it++;
     } else {
-      it = dst.erase(it);
+      // delete current element from dst.
+      it = dst->erase(it);
     }
   }
 }

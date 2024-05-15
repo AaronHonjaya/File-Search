@@ -68,6 +68,8 @@ bool DocIDTableReader::LookupDocID(
       // Return the positions list through the output parameter,
       // and return true.
 
+      // nothing to do since we push straight onto ret_val
+
       return true;
     }
   }

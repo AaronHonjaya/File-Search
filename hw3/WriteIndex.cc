@@ -192,10 +192,12 @@ int WriteIndex(MemIndex* mi, DocTable* dt, const char* file_name) {
     return kFailedWrite;
   }
   cur_pos += mi_bytes;
+
   // STEP 2.
   // Finally, backtrack to write the index header and write it.
-
-  if (WriteHeader(f, dt_bytes, mi_bytes, file_name) == kMagicNumber) {
+  // cast is so that its comparison of the same types
+  if (static_cast<uint32_t>(WriteHeader(f, dt_bytes, mi_bytes, file_name)) ==
+      kMagicNumber) {
     fclose(f);
     unlink(file_name);  // delete the file
     return kFailedWrite;
@@ -234,13 +236,13 @@ static int WriteHeader(FILE* f, int doctable_bytes, int memidx_bytes,
   // to do the CRC checksum calculation, feeding it characters that you
   // read from the index file using fread().
   // Seek to the start of the doctable.
+
+  // seek start to make sure we are at the start of the file.
   fseek(f, sizeof(IndexFileHeader), SEEK_SET);
 
   CRC32 crc;
-  int num_it = 0;
   char buff[BUFF_SIZE];
   int bytes_left = doctable_bytes + memidx_bytes;
-  int cur_pos = sizeof(IndexFileHeader);
   while (bytes_left > 0) {
     // read bytes
     int bytes_read = fread(buff, sizeof(char), BUFF_SIZE, f);
@@ -258,15 +260,9 @@ static int WriteHeader(FILE* f, int doctable_bytes, int memidx_bytes,
       crc.FoldByteIntoCRC(buff[i]);
     }
 
-    // seek forward and update bytes_left
-    cur_pos += bytes_read;
+    // update bytes_left
     bytes_left -= bytes_read;
-    num_it++;
   }
-
-  int expected_it = (doctable_bytes + memidx_bytes) / 1024;
-  if ((doctable_bytes + memidx_bytes) % 1024 != 0) expected_it++;
-  Verify333(num_it == expected_it);
 
   // Write the header fields.  Be sure to convert the fields to
   // network order before writing them!
@@ -410,9 +406,10 @@ static int WriteHTBucket(FILE* f, IndexFileOffset_t offset, LinkedList* li,
 
     // STEP 8.
     // Write the element itself, using fn.
-    HTKeyValue_t* kv;
-    LLIterator_Get(it, (LLPayload_t*)&kv);
-    int ele_bytes = fn(f, element_pos, kv);
+
+    LLPayload_t kv;
+    LLIterator_Get(it, &kv);
+    int ele_bytes = fn(f, element_pos, static_cast<HTKeyValue_t*>(kv));
 
     // Advance to the next element in the chain, updating our offsets.
     record_pos += sizeof(ElementPositionRecord);
@@ -434,7 +431,7 @@ static int WriteDocidToDocnameFn(FILE* f, IndexFileOffset_t offset,
                                  HTKeyValue_t* kv) {
   // STEP 9.
   // Determine the file name length
-  char* file_name = (char*)kv->value;
+  char* file_name = static_cast<char*>(kv->value);
   int16_t file_name_bytes = strlen(file_name);
 
   // fwrite() the docid from "kv".  Remember to convert to
@@ -459,7 +456,8 @@ static int WriteDocidToDocnameFn(FILE* f, IndexFileOffset_t offset,
     return kFailedWrite;
   }
 
-  if (fwrite(file_name, sizeof(char), file_name_bytes, f) != file_name_bytes) {
+  if (fwrite(file_name, sizeof(char), file_name_bytes, f) !=
+      static_cast<uint64_t>(file_name_bytes)) {
     return kFailedWrite;
   }
 
@@ -506,7 +504,7 @@ static int WriteDocIDToPositionListFn(FILE* f, IndexFileOffset_t offset,
     // STEP 13.
     // Get the next position from the list.
     DocPositionOffset_t pos;
-    LLIterator_Get(it, (LLPayload_t*)&pos);
+    LLIterator_Get(it, reinterpret_cast<LLPayload_t*>(&pos));
     position.position = pos;
     // STEP 14.
     // Truncate to 32 bits, then convert it to network order and write it out.
@@ -525,9 +523,11 @@ static int WriteDocIDToPositionListFn(FILE* f, IndexFileOffset_t offset,
 
   // STEP 15.
   // Calculate and return the total amount of data written.
+
+  // sanity check. cast so signs are the same.
   Verify333(cur_pos - offset ==
-            sizeof(DocIDElementHeader) +
-                num_positions * sizeof(DocIDElementPosition));
+            static_cast<signed>(sizeof(DocIDElementHeader) +
+                                num_positions * sizeof(DocIDElementPosition)));
   return cur_pos - offset;
 }
 
@@ -573,13 +573,13 @@ static int WriteWordToPostingsFn(FILE* f, IndexFileOffset_t offset,
   if (fseek(f, offset + sizeof(WordPostingsHeader), SEEK_SET) != 0) {
     return kFailedWrite;
   }
-  if (fwrite(wp->word, sizeof(char), word_bytes, f) != word_bytes) {
+  if (fwrite(wp->word, sizeof(char), word_bytes, f) !=
+      static_cast<uint64_t>(word_bytes)) {
     return kFailedWrite;
   }
   // STEP 19.
   // Calculate and return the total amount of data written.
-  return sizeof(WordPostingsHeader) + word_bytes +
-         ht_bytes;  // you may need to change this return value
+  return sizeof(WordPostingsHeader) + word_bytes + ht_bytes;
 }
 
 }  // namespace hw3

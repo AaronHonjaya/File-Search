@@ -75,6 +75,7 @@ DocIDTableReader* IndexTableReader::LookupWord(const string& word) const {
     stringstream ss;
     for (int i = 0; i < header.word_bytes; i++) {
       // STEP 2.
+      // read one byte at a time. putting htem into ss.
       char c;
       Verify333(fread(&c, sizeof(char), 1, file_) == 1);
       ss << c;
