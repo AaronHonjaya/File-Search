@@ -9,20 +9,29 @@
  * author.
  */
 
+#include "./HttpConnection.h"
+
 #include <stdint.h>
+#include <string.h>
+
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "./HttpRequest.h"
 #include "./HttpUtils.h"
-#include "./HttpConnection.h"
+
+#define READ_SIZE 1024
+#define BUFF_SIZE 1024
+#define SCALE_FACTOR 2
 
 using std::map;
 using std::string;
 using std::vector;
+using namespace boost;
 
 namespace hw4 {
 
@@ -48,17 +57,40 @@ bool HttpConnection::GetNextRequest(HttpRequest* const request) {
 
   // STEP 1:
 
+  char buff[BUFF_SIZE];
+  while (1) {
+    size_t end_index = buffer_.find(kHeaderEnd);
+    if (end_index == std::string::npos) {
+      int bytes_read =
+          WrappedRead(fd_, reinterpret_cast<unsigned char*>(buff), BUFF_SIZE);
+      if (bytes_read == -1) {
+        std::cerr << "Error With Read" << std::endl;
+        return false;
+      }
+      buffer_ += string(buff, bytes_read);
 
-  return false;  // you may need to change this return value
+      if (bytes_read == 0) {
+        if (buffer_.length() == 0) {
+          return false;
+        }
+        *request = ParseRequest(buffer_);
+        break;
+      }
+    } else {
+      *request = ParseRequest(buffer_.substr(0, end_index));
+      buffer_ = buffer_.substr(end_index + kHeaderEndLen);
+      break;
+    }
+  }
+
+  return true;
 }
 
 bool HttpConnection::WriteResponse(const HttpResponse& response) const {
   string str = response.GenerateResponseString();
-  int res = WrappedWrite(fd_,
-                         reinterpret_cast<const unsigned char*>(str.c_str()),
-                         str.length());
-  if (res != static_cast<int>(str.length()))
-    return false;
+  int res = WrappedWrite(
+      fd_, reinterpret_cast<const unsigned char*>(str.c_str()), str.length());
+  if (res != static_cast<int>(str.length())) return false;
   return true;
 }
 
@@ -83,7 +115,25 @@ HttpRequest HttpConnection::ParseRequest(const string& request) const {
 
   // STEP 2:
 
+  vector<string> lines;
+  boost::split(lines, request, is_any_of("\r\n"), token_compress_on);
+  vector<string> temp;
+  boost::split(temp, lines.at(0), is_any_of(" "), token_compress_on);
+  // std::cout << "request = " << request << std::endl;
+  // std::cout << "size = " << lines.size() << std::endl;
+  // std::cout << "first line = " << lines.at(0) << std::endl;
+  req.set_uri(temp.at(1));
 
+  for (uint64_t i = 1; i < lines.size(); i++) {
+    to_lower(lines[i]);
+    boost::split(temp, lines[i], is_any_of(":"), token_compress_on);
+    if (temp.size() != 2) {
+      continue;
+    }
+    trim(temp[0]);
+    trim(temp[1]);
+    req.AddHeader(temp[0], temp[1]);
+  }
   return req;
 }
 

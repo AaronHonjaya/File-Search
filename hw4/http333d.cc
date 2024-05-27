@@ -11,17 +11,18 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <signal.h>
-#include <cstdlib>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <list>
 
-#include "./ServerSocket.h"
 #include "./HttpServer.h"
+#include "./ServerSocket.h"
 
 using std::cerr;
 using std::cout;
@@ -45,11 +46,8 @@ static void Usage(char* prog_name);
 // Calls Usage() on failure. Possible errors include:
 // - path is not a readable directory
 // - index file names are readable
-static void GetPortAndPath(int argc,
-                    char** argv,
-                    uint16_t* const port,
-                    string* const path,
-                    list<string>* const indices);
+static void GetPortAndPath(int argc, char** argv, uint16_t* const port,
+                           string* const path, list<string>* const indices);
 
 int main(int argc, char** argv) {
   // Print out welcome message.
@@ -82,18 +80,14 @@ int main(int argc, char** argv) {
   return EXIT_SUCCESS;
 }
 
-
 static void Usage(char* prog_name) {
   cerr << "Usage: " << prog_name << " port staticfiles_directory indices+";
   cerr << endl;
   exit(EXIT_FAILURE);
 }
 
-static void GetPortAndPath(int argc,
-                    char** argv,
-                    uint16_t* const port,
-                    string* const path,
-                    list<string>* const indices) {
+static void GetPortAndPath(int argc, char** argv, uint16_t* const port,
+                           string* const path, list<string>* const indices) {
   // Here are some considerations when implementing this function:
   // - There is a reasonable number of command line arguments
   // - The port number is reasonable
@@ -101,5 +95,25 @@ static void GetPortAndPath(int argc,
   // - You have at least 1 index, and all indices are readable files
 
   // STEP 1:
-}
+  if (argc < 4) {
+    Usage(argv[0]);
+  }
+  if (sscanf(argv[1], "%hu", port) != 1) {
+    Usage(argv[0]);
+  }
+  if (*port < 1024) {
+    cerr << endl << *port << " isn't a valid port number." << endl;
+    Usage(argv[0]);
+  }
 
+  string dirPath(argv[2]);
+  DIR* dir = opendir(dirPath.c_str());
+  if (dir == nullptr) {
+    Usage(argv[0]);
+  }
+  closedir(dir);
+  *path = dirPath;
+  for (int i = 3; i < argc; i++) {
+    indices->push_back(string(argv[i]));
+  }
+}

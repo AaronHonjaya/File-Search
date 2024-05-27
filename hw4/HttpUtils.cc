@@ -12,12 +12,12 @@
 // This file contains a number of HTTP and HTML parsing routines
 // that come in useful throughput the assignment.
 
+#include "./HttpUtils.h"
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,9 +26,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <iostream>
 #include <vector>
-#include "./HttpUtils.h"
 
 using boost::algorithm::replace_all;
 using std::cerr;
@@ -39,6 +40,11 @@ using std::string;
 using std::vector;
 
 namespace hw4 {
+
+const int kNumUnsafeTokens = 5;
+const string kUnsafeTokens[] = {"&", ">", "<", "\"", "'"};
+const string kTokenReplacements[] = {"&amp;", "&gt;", "&lt;", "&quot;",
+                                     "&apos;"};
 
 bool IsPathSafe(const string& root_dir, const string& test_file) {
   // rootdir is a directory path. testfile is a path to a file.
@@ -53,7 +59,23 @@ bool IsPathSafe(const string& root_dir, const string& test_file) {
   // path of a file.)
 
   // STEP 1
+  char file_abs_path[PATH_MAX];
+  char* res1 = realpath(test_file.c_str(), file_abs_path);
+  if (res1 == nullptr) {
+    return false;
+  }
+  char dir_abs_path[PATH_MAX];
+  char* res2 = realpath(root_dir.c_str(), dir_abs_path);
+  if (res2 == nullptr) {
+    return false;
+  }
+  int dir_abs_len = strlen(dir_abs_path);
+  dir_abs_path[dir_abs_len] = '/';
+  dir_abs_path[dir_abs_len + 1] = '\0';
 
+  if (strstr(file_abs_path, dir_abs_path) != file_abs_path) {
+    return false;
+  }
 
   return true;  // you may want to change this return value
 }
@@ -70,6 +92,9 @@ string EscapeHtml(const string& from) {
 
   // STEP 2
 
+  for (int i = 0; i < kNumUnsafeTokens; i++) {
+    boost::replace_all(ret, kUnsafeTokens[i], kTokenReplacements[i]);
+  }
 
   return ret;
 }
@@ -85,8 +110,8 @@ string URIDecode(const string& from) {
     // note: use pos+n<from.length() instead of pos<from.length-n
     // to avoid overflow problems with unsigned int values
     char c1 = from[pos];
-    char c2 = (pos+1 < from.length()) ? toupper(from[pos+1]) : ' ';
-    char c3 = (pos+2 < from.length()) ? toupper(from[pos+2]) : ' ';
+    char c2 = (pos + 1 < from.length()) ? toupper(from[pos + 1]) : ' ';
+    char c3 = (pos + 2 < from.length()) ? toupper(from[pos + 2]) : ' ';
 
     // Special case the '+' for old encoders.
     if (c1 == '+') {
@@ -101,13 +126,11 @@ string URIDecode(const string& from) {
     }
 
     // Yes.  Are the next two characters hex digits?
-    if (!((('0' <= c2) && (c2 <= '9')) ||
-          (('A' <= c2) && (c2 <= 'F')))) {
+    if (!((('0' <= c2) && (c2 <= '9')) || (('A' <= c2) && (c2 <= 'F')))) {
       retstr.append(1, c1);
       continue;
     }
-    if (!((('0' <= c3) && (c3 <= '9')) ||
-           (('A' <= c3) && (c3 <= 'F')))) {
+    if (!((('0' <= c3) && (c3 <= '9')) || (('A' <= c3) && (c3 <= 'F')))) {
       retstr.append(1, c1);
       continue;
     }
@@ -144,14 +167,12 @@ void URLParser::Parse(const string& url) {
   // Split the URL into the path and the args components.
   vector<string> ps;
   boost::split(ps, url, boost::is_any_of("?"));
-  if (ps.size() < 1)
-    return;
+  if (ps.size() < 1) return;
 
   // Store the URI-decoded path.
   path_ = URIDecode(ps[0]);
 
-  if (ps.size() < 2)
-    return;
+  if (ps.size() < 2) return;
 
   // Split the args into each field=val; chunk.
   vector<string> vals;
@@ -172,8 +193,8 @@ void URLParser::Parse(const string& url) {
 
 uint16_t GetRandPort() {
   uint16_t portnum = 10000;
-  portnum += ((uint16_t) getpid()) % 25000;
-  portnum += ((uint16_t) rand()) % 5000;  // NOLINT(runtime/threadsafe_fn)
+  portnum += ((uint16_t)getpid()) % 25000;
+  portnum += ((uint16_t)rand()) % 5000;  // NOLINT(runtime/threadsafe_fn)
   return portnum;
 }
 
@@ -182,8 +203,7 @@ int WrappedRead(int fd, unsigned char* buf, int read_len) {
   while (1) {
     res = read(fd, buf, read_len);
     if (res == -1) {
-      if ((errno == EAGAIN) || (errno == EINTR))
-        continue;
+      if ((errno == EAGAIN) || (errno == EINTR)) continue;
     }
     break;
   }
@@ -196,12 +216,10 @@ int WrappedWrite(int fd, const unsigned char* buf, int write_len) {
   while (written_so_far < write_len) {
     res = write(fd, buf + written_so_far, write_len - written_so_far);
     if (res == -1) {
-      if ((errno == EAGAIN) || (errno == EINTR))
-        continue;
+      if ((errno == EAGAIN) || (errno == EINTR)) continue;
       break;
     }
-    if (res == 0)
-      break;
+    if (res == 0) break;
     written_so_far += res;
   }
   return written_so_far;
@@ -228,10 +246,8 @@ bool ConnectToServer(const string& host_name, uint16_t port_num,
   hints.ai_socktype = SOCK_STREAM;
 
   // Do the lookup.
-  if ((ret_val = getaddrinfo(host_name.c_str(),
-                            port_str,
-                            &hints,
-                            &results)) != 0) {
+  if ((ret_val = getaddrinfo(host_name.c_str(), port_str, &hints, &results)) !=
+      0) {
     cerr << "getaddrinfo failed: ";
     cerr << gai_strerror(ret_val) << endl;
     return false;

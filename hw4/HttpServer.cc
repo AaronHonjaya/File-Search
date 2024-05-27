@@ -9,19 +9,20 @@
  * author.
  */
 
+#include "./HttpServer.h"
+
 #include <boost/algorithm/string.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
-#include <vector>
-#include <string>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "./FileReader.h"
 #include "./HttpConnection.h"
 #include "./HttpRequest.h"
 #include "./HttpUtils.h"
-#include "./HttpServer.h"
 #include "./libhw3/QueryProcessor.h"
 
 using std::cerr;
@@ -38,24 +39,24 @@ namespace hw4 {
 // Constants, internal helper functions
 ///////////////////////////////////////////////////////////////////////////////
 static const char* kThreegleStr =
-  "<html><head><title>333gle</title></head>\n"
-  "<body>\n"
-  "<center style=\"font-size:500%;\">\n"
-  "<span style=\"position:relative;bottom:-0.33em;color:orange;\">3</span>"
+    "<html><head><title>333gle</title></head>\n"
+    "<body>\n"
+    "<center style=\"font-size:500%;\">\n"
+    "<span style=\"position:relative;bottom:-0.33em;color:orange;\">3</span>"
     "<span style=\"color:red;\">3</span>"
     "<span style=\"color:gold;\">3</span>"
     "<span style=\"color:blue;\">g</span>"
     "<span style=\"color:green;\">l</span>"
     "<span style=\"color:red;\">e</span>\n"
-  "</center>\n"
-  "<p>\n"
-  "<div style=\"height:20px;\"></div>\n"
-  "<center>\n"
-  "<form action=\"/query\" method=\"get\">\n"
-  "<input type=\"text\" size=30 name=\"terms\" />\n"
-  "<input type=\"submit\" value=\"Search\" />\n"
-  "</form>\n"
-  "</center><p>\n";
+    "</center>\n"
+    "<p>\n"
+    "<div style=\"height:20px;\"></div>\n"
+    "<center>\n"
+    "<form action=\"/query\" method=\"get\">\n"
+    "<input type=\"text\" size=30 name=\"terms\" />\n"
+    "<input type=\"submit\" value=\"Search\" />\n"
+    "</form>\n"
+    "</center><p>\n";
 
 // static
 const int HttpServer::kNumThreads = 100;
@@ -66,18 +67,22 @@ static void HttpServer_ThrFn(ThreadPool::Task* t);
 
 // Given a request, produce a response.
 static HttpResponse ProcessRequest(const HttpRequest& req,
-                            const string& base_dir,
-                            const list<string>& indices);
+                                   const string& base_dir,
+                                   const list<string>& indices);
 
 // Process a file request.
 static HttpResponse ProcessFileRequest(const string& uri,
-                                const string& base_dir);
+                                       const string& base_dir);
 
 // Process a query request.
 static HttpResponse ProcessQueryRequest(const string& uri,
-                                 const list<string>& indices);
+                                        const list<string>& indices);
 
+static string GetContentType(const string& file_name);
 
+static string FormatQueryResults(
+    const vector<string>& query_words,
+    const vector<hw3::QueryProcessor::QueryResult>& results);
 ///////////////////////////////////////////////////////////////////////////////
 // HttpServer
 ///////////////////////////////////////////////////////////////////////////////
@@ -98,12 +103,8 @@ bool HttpServer::Run(void) {
     HttpServerTask* hst = new HttpServerTask(HttpServer_ThrFn);
     hst->base_dir = static_file_dir_path_;
     hst->indices = &indices_;
-    if (!socket_.Accept(&hst->client_fd,
-                    &hst->c_addr,
-                    &hst->c_port,
-                    &hst->c_dns,
-                    &hst->s_addr,
-                    &hst->s_dns)) {
+    if (!socket_.Accept(&hst->client_fd, &hst->c_addr, &hst->c_port,
+                        &hst->c_dns, &hst->s_addr, &hst->s_dns)) {
       // The accept failed for some reason, so quit out of the server.
       // (Will happen when kill command is used to shut down the server.)
       break;
@@ -134,14 +135,20 @@ static void HttpServer_ThrFn(ThreadPool::Task* t) {
 
   // STEP 1:
   bool done = false;
+  HttpConnection hc(hst->client_fd);
   while (!done) {
-    done = true;  // you may need to change this return value
+    HttpRequest req;
+    if (!hc.GetNextRequest(&req)) break;
+    hc.WriteResponse(ProcessRequest(req, hst->base_dir, *(hst->indices)));
+    if (req.GetHeaderValue("connection").compare("close") == 0) {
+      done = true;
+    }
   }
 }
 
 static HttpResponse ProcessRequest(const HttpRequest& req,
-                            const string& base_dir,
-                            const list<string>& indices) {
+                                   const string& base_dir,
+                                   const list<string>& indices) {
   // Is the user asking for a static file?
   if (req.uri().substr(0, 8) == "/static/") {
     return ProcessFileRequest(req.uri(), base_dir);
@@ -152,7 +159,7 @@ static HttpResponse ProcessRequest(const HttpRequest& req,
 }
 
 static HttpResponse ProcessFileRequest(const string& uri,
-                                const string& base_dir) {
+                                       const string& base_dir) {
   // The response we'll build up.
   HttpResponse ret;
 
@@ -181,20 +188,34 @@ static HttpResponse ProcessFileRequest(const string& uri,
   string file_name = "";
 
   // STEP 2:
-
-
-  // If you couldn't find the file, return an HTTP 404 error.
-  ret.set_protocol("HTTP/1.1");
-  ret.set_response_code(404);
-  ret.set_message("Not Found");
-  ret.AppendToBody("<html><body>Couldn't find file \""
-                   + EscapeHtml(file_name)
-                   + "\"</body></html>\n");
+  URLParser uparser;
+  uparser.Parse(uri);
+  file_name =
+      uparser.path().substr(strlen("/static/"));  // get rid of '/static/'
+  FileReader fr(base_dir, file_name);
+  string contents;
+  string content_type = GetContentType(file_name);
+  // bool pathIsSafe = IsPathSafe(base_dir, file_name);
+  if (fr.ReadFile(&contents)) {
+    ret.set_protocol("HTTP/1.1");
+    ret.set_response_code(200);
+    ret.AppendToBody(EscapeHtml(contents));
+    ret.set_message("OK");
+    ret.set_content_type(content_type);
+  } else {
+    // if (!pathIsSafe) cout << "Error! Path wasn't safe!" << endl;
+    // If you couldn't find the file, return an HTTP 404 error.
+    ret.set_protocol("HTTP/1.1");
+    ret.set_response_code(404);
+    ret.set_message("Not Found");
+    ret.AppendToBody("<html><body>Couldn't find file \"" +
+                     EscapeHtml(file_name) + "\"</body></html>\n");
+  }
   return ret;
 }
 
 static HttpResponse ProcessQueryRequest(const string& uri,
-                                 const list<string>& indices) {
+                                        const list<string>& indices) {
   // The response we're building up.
   HttpResponse ret;
 
@@ -219,8 +240,99 @@ static HttpResponse ProcessQueryRequest(const string& uri,
   //    tags!)
 
   // STEP 3:
+  ret.AppendToBody(kThreegleStr);
+
+  URLParser uparser;
+  uparser.Parse(uri);
+
+  if (uparser.args().size() != 0 &&
+      uparser.args().find("terms") != uparser.args().end()) {
+    hw3::QueryProcessor qp(indices);
+    vector<string> query_words;
+    boost::split(query_words, boost::to_lower_copy(uparser.args().at("terms")),
+                 boost::is_any_of("+"), boost::token_compress_on);
+    ret.AppendToBody(
+        FormatQueryResults(query_words, qp.ProcessQuery(query_words)));
+  }
+  ret.set_response_code(200);
+  ret.set_protocol("HTTP/1.1");
+  ret.set_message("OK");
 
   return ret;
+}
+
+static string FormatQueryResults(
+    const vector<string>& query_words,
+    const vector<hw3::QueryProcessor::QueryResult>& results) {
+  stringstream ss;
+  int num_query_words = query_words.size();
+  for (int i = 0; i < num_query_words - 1; i++) {
+    ss << query_words[i] << " ";
+  }
+  ss << query_words[num_query_words - 1];
+  string query = EscapeHtml(ss.str());
+  ss.str("");
+
+  if (results.size() == 0) {
+    ss << "<p>No Results found for <span style=\"font-weight: bold;\"> "
+       << query << "</span></p>\n";
+  } else {
+    ss << "<p>" << results.size()
+       << " results found for <span style=\"font-weight: bold;\"> " << query
+       << "</span></p>\n";
+    ss << "<ul>\n";
+    for (const auto& result : results) {
+      string name = result.document_name;
+      string link;
+      if (name.find("http://") != 0) {
+        link = string("static/") + name;
+      } else {
+        link = name;
+      }
+      ss << "<li><a href=\"" << link << "\">" << result.document_name
+         << "</a> [" << result.rank << "]</li>\n";
+    }
+    ss << "</ul>\n";
+  }
+  return ss.str();
+}
+
+static string GetContentType(const string& file_name) {
+  int suffix_start = file_name.length();
+  // get the index of the character right after the '.' in the suffix
+  while (suffix_start - 1 >= 0 && file_name.at(suffix_start - 1) != '.') {
+    suffix_start--;
+  }
+  string suffix = file_name.substr(suffix_start);
+
+  //      for ".html" or ".htm", set to "text/html"
+  //      for ".jpeg" or ".jpg", set to "image/jpeg"
+  //      for ".png", set to "image/png"
+  //      for ".txt", set to text/plain
+  //      for ".js", set to text/javascript
+  //      for ".css", set to text/css
+  //      for ".xml", set to application/xml
+  //      for ".gif", set to image/gif
+
+  if (suffix == "html" || suffix == "htm") {
+    return "text/html";
+  } else if (suffix == "jpeg" || suffix == "jpg") {
+    return "image/jpeg";
+  } else if (suffix == "png") {
+    return "image/png";
+  } else if (suffix == "txt") {
+    return "text/plain";
+  } else if (suffix == "js") {
+    return "text/javascript";
+  } else if (suffix == "css") {
+    return "text/css";
+  } else if (suffix == "xml") {
+    return "application/xml";
+  } else if (suffix == "gif") {
+    return "image/gif";
+  }
+
+  return "";
 }
 
 }  // namespace hw4

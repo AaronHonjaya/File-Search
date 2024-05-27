@@ -10,18 +10,21 @@
  */
 
 #include <stdio.h>
-#include <string>
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 extern "C" {
-  #include "libhw2/FileParser.h"
+#include "libhw2/FileParser.h"
 }
 
-#include "./HttpUtils.h"
 #include "./FileReader.h"
+#include "./HttpUtils.h"
 
+#define READ_SIZE 1024
+#define SCALE_FACTOR 2
 using std::string;
 
 namespace hw4 {
@@ -45,9 +48,20 @@ bool FileReader::ReadFile(string* const contents) {
   // HttpUtils.h above the MallocDeleter class for details.
 
   // STEP 1:
+  if (!IsPathSafe(basedir_, full_file)) {
+    std::cout << "Path Was Not Safe!" << std::endl;
+    return false;
+  }
 
-
+  int file_size;
+  char* file_contents = ReadFileToString(full_file.c_str(), &file_size);
+  if (file_contents == nullptr) {
+    return false;
+  }
+  *contents = string(file_contents, file_size);
+  free(file_contents);
   return true;
+  
 }
 
 }  // namespace hw4
